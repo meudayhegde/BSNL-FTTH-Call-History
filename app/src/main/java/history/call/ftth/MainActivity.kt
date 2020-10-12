@@ -117,11 +117,13 @@ class MainActivity : AppCompatActivity() {
             override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
                 val historyHtml = response.body()?.string()
                 callerIDList.clear()
-                "<tr><td bgColor=#\\w+>(\\d+)</td><td bgColor=#\\w+>(\\w+)</td><td bgColor=#\\w+>(\\d+)</td><td bgColor=#\\w+>(\\d+)</td><td bgColor=#\\w+>(\\w+)</td><td bgColor=#\\w+>(\\d+:\\d+:\\d+)</td><td bgColor=#\\w+>(\\w+\\s+\\w+\\s+\\d+\\s+\\d+:\\d+:\\d+\\s+\\d+)</td></tr>".toRegex()
+                for(str in arrayOf("(\\w+)", "<font color=\"#\\w+\">(\\w+)</font>"))
+                "<tr><td bgColor=#\\w+>(\\d+)</td><td bgColor=#\\w+>$str</td><td bgColor=#\\w+>(\\d+)</td><td bgColor=#\\w+>(\\d+)</td><td bgColor=#\\w+>(\\w+)</td><td bgColor=#\\w+>(\\d+:\\d+:\\d+)</td><td bgColor=#\\w+>(\\w+\\s+\\w+\\s+\\d+\\s+\\d+:\\d+:\\d+\\s+\\d+)</td></tr>".toRegex()
                     .findAll("$historyHtml".replace("\n", "")).forEach {
                         callerIDList.add(CallerID(it.groupValues[1].toInt(), it.groupValues[2], it.groupValues[3], it.groupValues[4], it.groupValues[5], it.groupValues[6], it.groupValues[7], timeDelta))
-                        callerIDList.sortBy { callerD -> -callerD.index }
                     }
+
+                callerIDList.sortBy { callerD -> -callerD.index }
                 if(callerIDList.isNotEmpty())
                     title = if(callerIDList[0].type.equals("Incoming", true))
                         callerIDList[0].to
