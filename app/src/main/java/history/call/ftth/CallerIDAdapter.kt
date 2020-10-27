@@ -8,12 +8,14 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.provider.ContactsContract
+import android.text.Html
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
+import androidx.core.text.HtmlCompat
 import androidx.recyclerview.widget.RecyclerView
 
 
@@ -41,7 +43,7 @@ class CallerIDAdapter(private val idList: ArrayList<CallerID>) : RecyclerView.Ad
     override fun onBindViewHolder(holder: MyViewHolder, position: Int) {
         val callerID = idList[position]
         holder.callDuration.text = callerID.duration
-        holder.callTime.text = callerID.dateTime
+        holder.callTime.text = HtmlCompat.fromHtml(callerID.dateTimeHtml, HtmlCompat.FROM_HTML_MODE_LEGACY)
         val callerNumber = if(callerID.type == "Outgoing"){
             holder.callerIDIcon.setImageResource(R.drawable.ic_call_outgoing)
             callerID.to
@@ -74,7 +76,8 @@ class CallerIDAdapter(private val idList: ArrayList<CallerID>) : RecyclerView.Ad
 
         holder.cardView.setOnClickListener {
             val intent = Intent(Intent.ACTION_DIAL)
-            intent.data = Uri.parse("tel:$callerNumber")
+            val tel = if((callerNumber.length == 12) && callerNumber.startsWith("91")) "+$callerNumber" else callerNumber
+            intent.data = Uri.parse("tel:$tel")
             holder.cardView.context.startActivity(intent)
         }
     }

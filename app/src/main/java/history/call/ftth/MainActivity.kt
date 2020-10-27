@@ -1,10 +1,13 @@
 package history.call.ftth
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -52,16 +55,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startApplication(){
-        val pref = getSharedPreferences("auth", MODE_PRIVATE)
-        val okHttpClient = OkHttpClient().newBuilder()
-            .addInterceptor(AuthenticationInterceptor(pref.getString("username", "admin")!!, pref.getString("password", "system")!!))
-            .build()
-
-        val retrofit = Retrofit.Builder()
-            .client(okHttpClient)
-            .baseUrl("http://${pref.getString("router_admin_page", "192.168.1.1")}")
-            .build()
-
         callerIDAdapter = CallerIDAdapter(callerIDList)
         recyclerView.apply {
             setHasFixedSize(true)
@@ -69,30 +62,48 @@ class MainActivity : AppCompatActivity() {
             adapter = callerIDAdapter
         }
 
-        val service = retrofit.create(WebService::class.java)
-
-        loadCallHistory(service)
+        loadCallHistory()
 
         refreshLayout.setOnRefreshListener {
-            loadCallHistory(service)
+            loadCallHistory()
         }
     }
 
-    private fun loadCallHistory(service: WebService){
+    private fun loadCallHistory(){
         refreshLayout.isRefreshing = true
+        val pref = getSharedPreferences("auth", MODE_PRIVATE)
+        val okHttpClient = OkHttpClient().newBuilder()
+            .addInterceptor(AuthenticationInterceptor(pref.getString("username", "admin")!!, pref.getString("password", "system")!!))
+            .build()
+        val service = Retrofit.Builder()
+            .client(okHttpClient)
+            .baseUrl("${pref.getString("router_admin_page", "http://192.168.1.1")}")
+            .build()
+            .create(WebService::class.java)
         if(timeDelta != null) loadCallHistory(service, timeDelta!!)
         else service.getTimeZonePage().enqueue(object: retrofit2.Callback<ResponseBody>{
             override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
                 Log.d("Error", t.message?:"Error!")
                 refreshLayout.isRefreshing = false
+                callerIDList.clear()
+                callerIDAdapter.notifyDataSetChanged()
                 Toast.makeText(this@MainActivity, "Error loading router admin page!", Toast.LENGTH_LONG).show()
             }
 
             override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
                 val timePage = response.body()?.string()
                 val timeValues = "<th> Current Time : </th>\\s+<td>\\s+Year<input type=\"text\" name=\"year\" value=\"(\\d+)\" size=\"4\" maxlength=\"4\">\\s+Mon<input type=\"text\" name=\"month\" value=\"(\\d+)\" size=\"2\" maxlength=\"2\">\\s+Day<input type=\"text\" name=\"day\" value=\"(\\d+)\" size=\"2\" maxlength=\"2\">\\s+<p>\\s+Hour<input type=\"text\" name=\"hour\" value=\"(\\d+)\" size=\"2\" maxlength=\"2\">\\s+Min<input type=\"text\" name=\"minute\" value=\"(\\d+)\" size=\"2\" maxlength=\"2\">\\s+Sec<input type=\"text\" name=\"second\" value=\"(\\d+)\" size=\"2\" maxlength=\"2\">\\s+</td>\\s+</tr>".toRegex()
-                    .find("$timePage")?.groupValues!!
-                val year = timeValues[1]; var month = timeValues[2]; var day = timeValues[3]; var hour = timeValues[4]; var min = timeValues[5]; var sec = timeValues[6]
+                    .find("$timePage")?.groupValues
+                if (timeValues == null){
+                    refreshLayout.isRefreshing = false
+                    callerIDList.clear()
+                    callerIDAdapter.notifyDataSetChanged()
+                    Toast.makeText(this@MainActivity, "Invalid Credentials", Toast.LENGTH_LONG).show()
+                    return
+                }
+                val year = timeValues[1]; var month = timeValues[2]; var day =
+                    timeValues[3]; var hour = timeValues[4]; var min = timeValues[5]; var sec =
+                    timeValues[6]
                 month = if(month.length == 1) "0$month" else month
                 day = if(day.length == 1) "0$day" else day
                 hour = if(hour.length == 1) "0$hour" else hour
@@ -134,6 +145,21 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    override fun onPrepareOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when(item.itemId){
+            R.id.menu_settings -> {
+                val intent = Intent(this, SettingsActivity::class.java)
+                startActivity(intent)
+            }
+        }
+
+        return super.onOptionsItemSelected(item)
+    }
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         when (requestCode) {
             PERMISSION_REQUEST_CODE -> {
